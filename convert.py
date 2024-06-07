@@ -6,6 +6,7 @@ import logging
 import os
 import uuid
 from typing import Any
+import warnings
 import psd_tools
 import psycopg2
 from dotenv import load_dotenv
@@ -19,6 +20,9 @@ DB_URL = os.getenv("DB_URL")
 # Logger configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Ignore warnings
+warnings.filterwarnings("ignore", category=Image.DecompressionBombWarning)
 
 
 def preview(
