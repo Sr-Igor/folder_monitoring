@@ -1,7 +1,3 @@
-"""
-Monitor a folder and its subfolders for changes and generate previews
-"""
-
 import os
 import time
 import uuid
@@ -132,5 +128,10 @@ def monitor_folder(folder_path):
 
 
 if __name__ == "__main__":
-    FOLDER_TO_WATCH = REPOSITORY
-    monitor_folder(FOLDER_TO_WATCH)
+    while True:
+        try:
+            FOLDER_TO_WATCH = REPOSITORY
+            monitor_folder(FOLDER_TO_WATCH)
+        except Exception as e:  # pylint: disable=broad-except
+            LOGGER.error("An unexpected error occurred: %s", e)
+            LOGGER.info("Restarting the monitoring process...")
