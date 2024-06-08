@@ -25,6 +25,19 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=Image.DecompressionBombWarning)
 
 
+def calculate_dpi(width, height):
+    """
+    Calculate DPI using default inch value.
+    """
+    # Default inch value
+    default_inch = 1
+
+    # Calculate DPI
+    dpi = (width + height) / default_inch
+
+    return dpi
+
+
 def preview(
     arch: Any,
     folder_destiny: str = 'previews',
@@ -64,14 +77,33 @@ def preview(
 
         img.save(output_path, 'JPEG')
 
+        # Extract additional information
+        dpi = img.info.get('dpi', (None, None))
+        if dpi[0] is not None and dpi[1] is not None:
+            dpi = sum(dpi) // len(dpi)  # Average DPI if both values exist
+        else:
+            width, height = img.size
+
+            # dpi = calculate_dpi(width, height)
+            dpi = None
+
+        width, height = img.size
+        dimension = f"{height}x{width}" if width and height else None
+        pixels = width * height if width and height else None
+        size = os.path.getsize(
+            # Size in MB
+            arch) / (1024 * 1024) if os.path.exists(arch) else None
+
         logger.info("Conversion of %s completed successfully!", arch)
-        save_to_database(arch, output_path, graph_id)
+        save_to_database(arch, output_path, graph_id,
+                         dpi, dimension, pixels, size)
 
     except Exception as e:  # pylint: disable=broad-except
         logger.error("An error occurred while converting the file: %s", e)
 
 
-def save_to_database(original_filename, preview_filename, graph_id):
+def save_to_database(original_filename, preview_filename, graph_id, dpi,
+                     dimension, pixels, size):
     """Save information to the database."""
     conn = None
     try:
@@ -79,11 +111,19 @@ def save_to_database(original_filename, preview_filename, graph_id):
         cur = conn.cursor()
         entry_id = uuid.uuid4()
         query = sql.SQL(
-            "INSERT INTO graphs_children (id, graph_id, preview, original) "
-            "VALUES (%s, %s, %s, %s)"
+            "INSERT INTO graphs_children (id, graph_id, preview, original, dpi, dimension, pixel, size) "  # noqa: E501
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
         )
-        cur.execute(query, (str(entry_id), str(graph_id),
-                    preview_filename, original_filename))
+        cur.execute(query, (
+            str(entry_id),
+            str(graph_id),
+            preview_filename,
+            original_filename,
+            dpi,
+            dimension,
+            pixels,
+            size
+        ))
         conn.commit()
         logger.info("Information saved to the database successfully!")
 
