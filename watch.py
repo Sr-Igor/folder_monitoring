@@ -122,11 +122,12 @@ def monitor_folder(folder_path):
     for root, dirs, files in os.walk(folder_path):
         seen_directories.add(root)
         for file in files:
-            file_path = os.path.join(root, file)
-            try:
-                files_dict[file_path] = os.path.getmtime(file_path)
-            except FileNotFoundError:
-                files_dict[file_path] = None
+            if not file.startswith('.'):  # Ignora arquivos que começam com "."
+                file_path = os.path.join(root, file)
+                try:
+                    files_dict[file_path] = os.path.getmtime(file_path)
+                except FileNotFoundError:
+                    files_dict[file_path] = None
 
     while True:
         time.sleep(1)
@@ -146,13 +147,14 @@ def monitor_folder(folder_path):
                     seen_directories.add(full_dir_path)
 
             for file in files:
-                file_path = os.path.join(root, file)
-                try:
-                    mt = os.path.getmtime(file_path)
-                except FileNotFoundError:
-                    mt = None
-                if file_path not in files_dict or files_dict[file_path] != mt:
-                    updated_files[file_path] = mt
+                if not file.startswith('.'):
+                    file_path = os.path.join(root, file)
+                    try:
+                        mt = os.path.getmtime(file_path)
+                    except FileNotFoundError:
+                        mt = None
+                    if file_path not in files_dict or files_dict[file_path] != mt:  # noqa: E501
+                        updated_files[file_path] = mt
 
         if updated_files:
             LOGGER.info("Modified files:")
