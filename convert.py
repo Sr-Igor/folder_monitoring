@@ -1,7 +1,3 @@
-"""
-Generate image previews and save them to a database.
-"""
-
 import logging
 import os
 import uuid
@@ -100,30 +96,41 @@ def preview(
 
     except Exception as e:  # pylint: disable=broad-except
         logger.error("An error occurred while converting the file: %s", e)
+        save_to_database(arch, None, graph_id, None,
+                         None, None, None, error=str(e))
 
 
 def save_to_database(original_filename, preview_filename, graph_id, dpi,
-                     dimension, pixels, size):
+                     dimension, pixels, size, error=None):
     """Save information to the database."""
     conn = None
     try:
         conn = psycopg2.connect(DB_URL)
         cur = conn.cursor()
         entry_id = uuid.uuid4()
-        query = sql.SQL(
-            "INSERT INTO graphs_children (id, graph_id, preview, original, dpi, dimension, pixel, size) "  # noqa: E501
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-        )
-        cur.execute(query, (
-            str(entry_id),
-            str(graph_id),
-            preview_filename,
-            original_filename,
-            dpi,
-            dimension,
-            pixels,
-            size
-        ))
+        if error:
+            query = sql.SQL(
+                "INSERT INTO logs_script (id, log) VALUES (%s, %s)"
+            )
+            cur.execute(query, (
+                str(entry_id),
+                str(error)
+            ))
+        else:
+            query = sql.SQL(
+                "INSERT INTO graphs_children (id, graph_id, preview, original, dpi, dimension, pixel, size) "  # noqa: E501
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+            )
+            cur.execute(query, (
+                str(entry_id),
+                str(graph_id),
+                preview_filename,
+                original_filename,
+                dpi,
+                dimension,
+                pixels,
+                size
+            ))
         conn.commit()
         logger.info("Information saved to the database successfully!")
 

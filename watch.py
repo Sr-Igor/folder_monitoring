@@ -33,6 +33,23 @@ def close_db(conn, cur):
     conn.close()
 
 
+def log_error_to_db(error_text):
+    """Log error to the logs_script table in the database."""
+    conn, cur = connect_db()
+    try:
+        log_id = uuid.uuid4()
+        query = sql.SQL(
+            "INSERT INTO logs_script (id, log) VALUES (%s, %s)"
+        )
+        cur.execute(query, (str(log_id), error_text))
+        conn.commit()
+    except psycopg2.DatabaseError as exc:
+        LOGGER.error("Error logging to the database: %s", exc)
+        conn.rollback()
+    finally:
+        close_db(conn, cur)
+
+
 def insert_new_directory(dir_id, dir_name, dir_relative_path):
     """
     Insert a new record into the graphs.
@@ -49,7 +66,10 @@ def insert_new_directory(dir_id, dir_name, dir_relative_path):
             dir_name, dir_relative_path, dir_id
         )
     except psycopg2.DatabaseError as exc:
-        LOGGER.error("Error registering directory in the database: %s", exc)
+        inner_error_message = f"Error registering directory in the database: {
+            exc}"
+        LOGGER.error(inner_error_message)
+        log_error_to_db(inner_error_message)
         conn.rollback()
     finally:
         close_db(conn, cur)
@@ -69,8 +89,10 @@ def get_directory_id(dir_relative_path):
         else:
             return None
     except psycopg2.DatabaseError as exc:
-        LOGGER.error(
-            "Error retrieving directory ID from the database: %s", exc)
+        inner_error_message = f"Error retrieving directory ID from the database: {  # noqa: E501
+            exc}"
+        LOGGER.error(inner_error_message)
+        log_error_to_db(inner_error_message)
     finally:
         close_db(conn, cur)
 
@@ -147,7 +169,13 @@ def monitor_folder(folder_path):
                 full_dir_path = os.path.dirname(file_path)
                 dir_id = ensure_directory_registered(full_dir_path)
 
-                preview(file_path, destination_path, dir_id)
+                try:
+                    preview(file_path, destination_path, dir_id)
+                except Exception as exc:  # pylint: disable=broad-except
+                    file_error_message = f"Error processing file {
+                        file_path}: {exc}"
+                    LOGGER.error(file_error_message)
+                    log_error_to_db(file_error_message)
 
             files_dict.update(updated_files)
 
@@ -158,5 +186,7 @@ if __name__ == "__main__":
             FOLDER_TO_WATCH = REPOSITORY
             monitor_folder(FOLDER_TO_WATCH)
         except Exception as e:  # pylint: disable=broad-except
-            LOGGER.error("An unexpected error occurred: %s", e)
+            error_message = f"An unexpected error occurred: {e}"
+            LOGGER.error(error_message)
+            log_error_to_db(error_message)
             LOGGER.info("Restarting the monitoring process...")
