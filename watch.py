@@ -55,6 +55,37 @@ def insert_new_directory(dir_id, dir_name, dir_relative_path):
         close_db(conn, cur)
 
 
+def get_directory_id(dir_relative_path):
+    """Get the ID of a directory if it exists in the database."""
+    conn, cur = connect_db()
+    try:
+        query = sql.SQL(
+            "SELECT id FROM graphs WHERE path = %s"
+        )
+        cur.execute(query, (dir_relative_path,))
+        result = cur.fetchone()
+        if result:
+            return result[0]
+        else:
+            return None
+    except psycopg2.DatabaseError as exc:
+        LOGGER.error(
+            "Error retrieving directory ID from the database: %s", exc)
+    finally:
+        close_db(conn, cur)
+
+
+def ensure_directory_registered(full_dir_path):
+    """Ensure that the directory is registered in the database."""
+    dir_relative_path = os.path.relpath(full_dir_path, REPOSITORY)
+    dir_id = get_directory_id(dir_relative_path)
+    if dir_id is None:
+        dir_name = os.path.basename(full_dir_path)
+        dir_id = uuid.uuid4()
+        insert_new_directory(dir_id, dir_name, dir_relative_path)
+    return dir_id
+
+
 def is_directory_empty(directory):
     """Check if the folder is empty."""
     return not any(os.scandir(directory))
@@ -86,16 +117,7 @@ def monitor_folder(folder_path):
                 full_dir_path = os.path.join(root, dir_name)
                 if full_dir_path not in seen_directories:
                     if not is_directory_empty(full_dir_path):
-
-                        dir_relative_path = os.path.relpath(
-                            full_dir_path, REPOSITORY
-                        )
-
-                        dir_id = uuid.uuid4()
-
-                        insert_new_directory(
-                            dir_id, dir_name, dir_relative_path
-                        )
+                        dir_id = ensure_directory_registered(full_dir_path)
                     else:
                         LOGGER.info("Empty directory ignored: %s",
                                     full_dir_path)
@@ -121,6 +143,9 @@ def monitor_folder(folder_path):
                 )
 
                 os.makedirs(destination_path, exist_ok=True)
+
+                full_dir_path = os.path.dirname(file_path)
+                dir_id = ensure_directory_registered(full_dir_path)
 
                 preview(file_path, destination_path, dir_id)
 
