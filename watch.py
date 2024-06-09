@@ -2,6 +2,7 @@ import os
 import time
 import uuid
 import logging
+import signal
 from dotenv import load_dotenv
 import psycopg2
 from psycopg2 import sql
@@ -50,6 +51,21 @@ def log_error_to_db(error_text):
         close_db(conn, cur)
 
 
+def log_initialization():
+    """Log script initialization."""
+    LOGGER.info("Script is running.")
+    log_error_to_db("Script is running.")
+
+
+def log_shutdown():
+    """Log script shutdown."""
+    LOGGER.info("Script down.")
+    log_error_to_db("Script down.")
+
+
+log_initialization()
+
+
 def insert_new_directory(dir_id, dir_name, dir_relative_path):
     """
     Insert a new record into the graphs.
@@ -89,7 +105,7 @@ def get_directory_id(dir_relative_path):
         else:
             return None
     except psycopg2.DatabaseError as exc:
-        inner_error_message = f"Error retrieving directory ID from the database: {  # noqa: E501
+        inner_error_message = f"Error retrieving directory ID from the database: {  # noqa E501
             exc}"
         LOGGER.error(inner_error_message)
         log_error_to_db(inner_error_message)
@@ -122,12 +138,20 @@ def monitor_folder(folder_path):
     for root, dirs, files in os.walk(folder_path):
         seen_directories.add(root)
         for file in files:
-            if not file.startswith('.'):  # Ignora arquivos que começam com "."
+            if not file.startswith('.'):
                 file_path = os.path.join(root, file)
                 try:
                     files_dict[file_path] = os.path.getmtime(file_path)
                 except FileNotFoundError:
                     files_dict[file_path] = None
+
+    def signal_handler(sign, frame):  # pylint: disable=unused-argument
+        """Handler for termination signal."""
+        log_shutdown()
+        exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
     while True:
         time.sleep(1)
@@ -153,7 +177,7 @@ def monitor_folder(folder_path):
                         mt = os.path.getmtime(file_path)
                     except FileNotFoundError:
                         mt = None
-                    if file_path not in files_dict or files_dict[file_path] != mt:  # noqa: E501
+                    if file_path not in files_dict or files_dict[file_path] != mt:  # noqa E501
                         updated_files[file_path] = mt
 
         if updated_files:
@@ -183,12 +207,12 @@ def monitor_folder(folder_path):
 
 
 if __name__ == "__main__":
-    while True:
-        try:
-            FOLDER_TO_WATCH = REPOSITORY
-            monitor_folder(FOLDER_TO_WATCH)
-        except Exception as e:  # pylint: disable=broad-except
-            error_message = f"An unexpected error occurred: {e}"
-            LOGGER.error(error_message)
-            log_error_to_db(error_message)
-            LOGGER.info("Restarting the monitoring process...")
+    try:
+        FOLDER_TO_WATCH = REPOSITORY
+        monitor_folder(FOLDER_TO_WATCH)
+    except Exception as e:  # pylint: disable=broad-except
+        error_message = f"An unexpected error occurred: {e}"
+        LOGGER.error(error_message)
+        log_error_to_db(error_message)
+    finally:
+        log_shutdown()
