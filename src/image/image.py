@@ -26,7 +26,7 @@ import warnings
 import psd_tools
 from PIL import Image, ImageFile
 
-from src.config.config import QUALITY
+from src.config.config import QUALITY, PIXEL_LIMIT
 from src.logs.logger import LOGGER
 from src.database.db_operations import save_to_database
 
@@ -90,6 +90,13 @@ def preview(arch,
 
         if img.mode in ('CMYK', 'RGBA', 'LA', 'P'):
             img = img.convert('RGB')
+
+        max_dimension = int(PIXEL_LIMIT)
+        if img.width > max_dimension or img.height > max_dimension:
+            ratio = min(max_dimension / img.width, max_dimension / img.height)
+            new_size = (int(img.width * ratio), int(img.height * ratio))
+            img = img.resize(
+                new_size, Image.LANCZOS)  # pylint: disable=no-member
 
         module = arch.replace(folder_path, '').replace('\\', '/').split('.')
         path = module[0].split('/')

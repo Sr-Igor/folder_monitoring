@@ -35,15 +35,27 @@ import src.database.db_operations as db
 
 def is_directory_empty(directory):
     """
-    Check if a directory is empty.
+    Check if a directory is empty or contains only subdirectories.
 
     Args:
         directory (str): Path to the directory.
 
     Returns:
-        bool: True if the directory is empty, False otherwise.
+        bool: True if the directory is empty or contains only subdirectories,
+        False otherwise.
     """
-    return not any(os.scandir(directory))
+    try:
+        # Itera sobre os itens no diretório
+        for entry in os.scandir(directory):
+            if entry.is_file() or (entry.is_dir() and not is_directory_empty(entry.path)):  # noqa
+                return False
+        return True
+    except FileNotFoundError as exc:
+        raise ValueError(f"The directory '{
+                         directory}' does not exist.") from exc
+    except PermissionError as exc:
+        raise ValueError(f"Permission denied for directory '{
+                         directory}'.") from exc
 
 
 def ensure_directory_registered(full_dir_path):
