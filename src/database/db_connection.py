@@ -15,7 +15,7 @@ Functions:
 """
 
 import psycopg2
-from config import DB_URL
+from src.config.config import DB_URL
 
 
 def connect_db():

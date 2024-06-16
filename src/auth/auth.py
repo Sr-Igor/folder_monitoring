@@ -25,7 +25,7 @@ Constants:
 """
 
 from http.server import SimpleHTTPRequestHandler
-from config import AUTH_TOKEN, WEB_URL
+from src.config.config import AUTH_TOKEN, WEB_URL
 
 
 class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):

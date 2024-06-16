@@ -16,11 +16,11 @@ Functions:
     main: Main function to execute the repository monitoring application.
 """
 
-from db_logger import log_initialization, log_shutdown, LOGGER
-from config import REPOSITORY, PORT
-from monitor import monitor_folder
-from server import run_server_in_thread
-from operations import log_error_to_db
+from src.logs.logger import log_initialization, log_shutdown, LOGGER
+from src.config.config import REPOSITORY, PORT
+from src.monitor.monitor import monitor_folder
+from src.server.server import run_server_in_thread
+from src.database.db_operations import log_error_to_db
 
 
 def main():

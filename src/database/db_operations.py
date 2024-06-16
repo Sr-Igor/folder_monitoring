@@ -21,8 +21,8 @@ Functions:
 
 import uuid
 from psycopg2 import sql, DatabaseError, Error
-from db_connection import connect_db, close_db
-import db_logger as log
+from src.database.db_connection import connect_db, close_db
+import src.logs.logger as log
 
 
 def log_error_to_db(error_text):
@@ -98,3 +98,60 @@ def save_to_database(original_filename, preview_filename, graph_id, dpi, dimensi
     finally:
         if conn:
             close_db(conn, cur)
+
+
+def get_directory_id(dir_relative_path):
+    """
+    Retrieve the ID of a directory from the database.
+
+    Args:
+        dir_relative_path (str): Relative path of the directory.
+
+    Returns:
+        uuid.UUID or None: UUID of the directory if found, None otherwise.
+    """
+    conn, cur = connect_db()
+    try:
+        query = sql.SQL("SELECT id FROM graphs WHERE path = %s")
+        cur.execute(query, (dir_relative_path,))
+        result = cur.fetchone()
+        if result:
+            return result[0]
+        else:
+            return None
+    except DatabaseError as exc:
+        inner_error_message = f"Error retrieving directory ID from the database: {exc}"  # noqa
+        log.LOGGER.error(inner_error_message)
+        log_error_to_db(inner_error_message)
+    finally:
+        close_db(conn, cur)
+
+
+def insert_new_directory(dir_id, dir_name, dir_relative_path):
+    """
+    Insert a new directory into the database.
+
+    Args:
+        dir_id (uuid.UUID): Unique identifier for the directory.
+        dir_name (str): Name of the directory.
+        dir_relative_path (str): Relative path of the directory.
+
+    Returns:
+        None
+    """
+    conn, cur = connect_db()
+    try:
+        query = sql.SQL(
+            "INSERT INTO graphs (id, name, path) VALUES (%s, %s, %s)")
+        cur.execute(query, (str(dir_id), dir_name, dir_relative_path))
+        conn.commit()
+        log.LOGGER.info("New dir registered in the db: %s with relative path %s, UUID: %s",  # noqa
+                        dir_name, dir_relative_path, dir_id)
+    except DatabaseError as exc:
+        inner_error_message = f"Error registering directory in the database: {
+            exc}"
+        log.LOGGER.error(inner_error_message)
+        log_error_to_db(inner_error_message)
+        conn.rollback()
+    finally:
+        close_db(conn, cur)

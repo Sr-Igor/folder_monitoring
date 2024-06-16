@@ -26,9 +26,9 @@ import warnings
 import psd_tools
 from PIL import Image, ImageFile
 
-from config import QUALITY
-from db_logger import LOGGER
-from operations import save_to_database
+from src.config.config import QUALITY
+from src.logs.logger import LOGGER
+from src.database.db_operations import save_to_database
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 

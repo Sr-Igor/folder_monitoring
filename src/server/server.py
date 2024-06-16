@@ -21,9 +21,9 @@ Functions:
 import os
 import threading
 from http.server import HTTPServer
-from auth import AuthHTTPRequestHandler
-from db_logger import LOGGER
-from config import IP_SERVER
+from src.auth.auth import AuthHTTPRequestHandler
+from src.logs.logger import LOGGER
+from src.config.config import IP_SERVER
 
 
 def start_http_server(directory, port=8000, server_name="Server"):

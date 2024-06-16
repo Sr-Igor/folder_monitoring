@@ -14,7 +14,7 @@ Constants:
 """
 
 import logging
-import operations
+import src.database.db_operations as db_operations
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def log_initialization():
         None
     """
     LOGGER.info("Script is running.")
-    operations.log_error_to_db("Script is running.")
+    db_operations.log_error_to_db("Script is running.")
 
 
 def log_shutdown():
@@ -47,4 +47,4 @@ def log_shutdown():
         None
     """
     LOGGER.info("Script down.")
-    operations.log_error_to_db("Script down.")
+    db_operations.log_error_to_db("Script down.")

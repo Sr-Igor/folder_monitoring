@@ -27,13 +27,10 @@ import signal
 import time
 import uuid
 
-import psycopg2
-
-from config import DESTINATION, REPOSITORY
-from db_connection import close_db, connect_db
-from db_logger import LOGGER, log_shutdown
-from image import preview
-from operations import log_error_to_db
+from src.config.config import DESTINATION, REPOSITORY
+from src.logs.logger import LOGGER, log_shutdown
+from src.image.image import preview
+import src.database.db_operations as db
 
 
 def is_directory_empty(directory):
@@ -47,63 +44,6 @@ def is_directory_empty(directory):
         bool: True if the directory is empty, False otherwise.
     """
     return not any(os.scandir(directory))
-
-
-def insert_new_directory(dir_id, dir_name, dir_relative_path):
-    """
-    Insert a new directory into the database.
-
-    Args:
-        dir_id (uuid.UUID): Unique identifier for the directory.
-        dir_name (str): Name of the directory.
-        dir_relative_path (str): Relative path of the directory.
-
-    Returns:
-        None
-    """
-    conn, cur = connect_db()
-    try:
-        query = psycopg2.sql.SQL(
-            "INSERT INTO graphs (id, name, path) VALUES (%s, %s, %s)")
-        cur.execute(query, (str(dir_id), dir_name, dir_relative_path))
-        conn.commit()
-        LOGGER.info("New dir registered in the db: %s with relative path %s, UUID: %s",  # noqa
-                    dir_name, dir_relative_path, dir_id)
-    except psycopg2.DatabaseError as exc:
-        inner_error_message = f"Error registering directory in the database: {
-            exc}"
-        LOGGER.error(inner_error_message)
-        log_error_to_db(inner_error_message)
-        conn.rollback()
-    finally:
-        close_db(conn, cur)
-
-
-def get_directory_id(dir_relative_path):
-    """
-    Retrieve the ID of a directory from the database.
-
-    Args:
-        dir_relative_path (str): Relative path of the directory.
-
-    Returns:
-        uuid.UUID or None: UUID of the directory if found, None otherwise.
-    """
-    conn, cur = connect_db()
-    try:
-        query = psycopg2.sql.SQL("SELECT id FROM graphs WHERE path = %s")
-        cur.execute(query, (dir_relative_path,))
-        result = cur.fetchone()
-        if result:
-            return result[0]
-        else:
-            return None
-    except psycopg2.DatabaseError as exc:
-        inner_error_message = f"Error retrieving directory ID from the database: {exc}"  # noqa
-        LOGGER.error(inner_error_message)
-        log_error_to_db(inner_error_message)
-    finally:
-        close_db(conn, cur)
 
 
 def ensure_directory_registered(full_dir_path):
@@ -120,11 +60,11 @@ def ensure_directory_registered(full_dir_path):
         uuid.UUID: UUID of the directory.
     """
     dir_relative_path = os.path.relpath(full_dir_path, REPOSITORY)
-    dir_id = get_directory_id(dir_relative_path)
+    dir_id = db.get_directory_id(dir_relative_path)
     if dir_id is None:
         dir_name = os.path.basename(full_dir_path)
         dir_id = uuid.uuid4()
-        insert_new_directory(dir_id, dir_name, dir_relative_path)
+        db.insert_new_directory(dir_id, dir_name, dir_relative_path)
     return dir_id
 
 
@@ -202,6 +142,6 @@ def monitor_folder(folder_path, force_resync=False):
                     file_error_message = f"Error processing file {
                         file_path}: {exc}"
                     LOGGER.error(file_error_message)
-                    log_error_to_db(file_error_message)
+                    db.log_error_to_db(file_error_message)
 
             files_dict.update(updated_files)
