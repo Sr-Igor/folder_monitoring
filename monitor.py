@@ -128,26 +128,26 @@ def ensure_directory_registered(full_dir_path):
     return dir_id
 
 
-def monitor_folder(folder_path):
-    """
-    Monitor a folder and its subfolders for changes.
-
-    This function monitors a specified folder and its subfolders for modified
-    files. It registers new directories in the database if they are not already
-    registered. It processes modified files by generating previews, logging
-    operations, and saving metadata to a database.
-
-    Args:
-        folder_path (str): Path to the folder to monitor.
-
-    Returns:
-        None
-    """
+def monitor_folder(folder_path, force_resync=False):
+    """Monitor the specified folder and its subfolders."""
     LOGGER.info("Monitoring folder '%s' and its subfolders...", folder_path)
     files_dict = {}
     seen_directories = set()
 
+    # WARN - If this true, all existent files will be reprocessed
+    if not force_resync:
+        for root, dirs, files in os.walk(folder_path):
+            seen_directories.add(root)
+            for file in files:
+                if not file.startswith('.'):
+                    file_path = os.path.join(root, file)
+                    try:
+                        files_dict[file_path] = os.path.getmtime(file_path)
+                    except FileNotFoundError:
+                        files_dict[file_path] = None
+
     def signal_handler(sign, frame):  # pylint: disable=unused-argument
+        """Handler for termination signal."""
         log_shutdown()
         exit(0)
 
