@@ -6,12 +6,13 @@ import warnings
 import psd_tools
 import psycopg2
 from dotenv import load_dotenv
-from PIL import Image
+from PIL import Image, ImageFile
 from psycopg2 import sql
 
 load_dotenv()
 
 DB_URL = os.getenv("DB_URL")
+QUALITY = os.getenv("QUALITY")
 
 # Logger configuration
 logging.basicConfig(level=logging.INFO)
@@ -19,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 # Ignore warnings
 warnings.filterwarnings("ignore", category=Image.DecompressionBombWarning)
+
+# Handle truncated images
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def calculate_dpi(width, height):
@@ -37,7 +41,8 @@ def calculate_dpi(width, height):
 def preview(
     arch: Any,
     folder_destiny: str = 'previews',
-    graph_id: str = 'none'
+    graph_id: str = 'none',
+    quality: int = QUALITY
 ) -> None:
     """
     Preview function to visualize and save image previews.
@@ -46,6 +51,7 @@ def preview(
         arch (Any): The path to the image file.
         folder_destiny (str, optional): Where the preview will be saved.
         graph_id (str, optional): The ID of the graph. Defaults to 'none'.
+        quality (int, optional): JPEG quality for compression. Defaults to 50.
 
     Returns:
         None
@@ -71,7 +77,9 @@ def preview(
         name = path[-1]
         output_path = f'{folder_destiny}/{name}.jpeg'
 
-        img.save(output_path, 'JPEG')
+        # Save image with compression
+        img.save(output_path, 'JPEG', quality=quality,
+                 optimize=True, progressive=True)
 
         # Extract additional information
         dpi = img.info.get('dpi', (None, None))
@@ -79,16 +87,13 @@ def preview(
             dpi = sum(dpi) // len(dpi)  # Average DPI if both values exist
         else:
             width, height = img.size
-
-            # dpi = calculate_dpi(width, height)
             dpi = None
 
         width, height = img.size
         dimension = f"{height}x{width}" if width and height else None
         pixels = width * height if width and height else None
-        size = os.path.getsize(
-            # Size in MB
-            arch) / (1024 * 1024) if os.path.exists(arch) else None
+        size = os.path.getsize(output_path) / (1024 *
+                                               1024) if os.path.exists(output_path) else None
 
         logger.info("Conversion of %s completed successfully!", arch)
         save_to_database(arch, output_path, graph_id,

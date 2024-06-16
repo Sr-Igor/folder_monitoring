@@ -1,86 +1,74 @@
+"""
+Module for monitoring a folder and its subfolders, registering directories in a
+database, and processing modified files.
+
+This module includes functions for:
+- Monitoring a specified folder and its subfolders.
+- Registering new directories in a database if they are not already registered.
+- Processing modified files by generating previews, logging operations, and
+  saving metadata to a database.
+
+Dependencies:
+    - os: Provides access to operating system functionalities.
+    - signal: Allows handling of signals such as SIGINT and SIGTERM.
+    - psycopg2: PostgreSQL adapter for Python.
+    - uuid: Generates UUIDs for directory IDs.
+    - db_logger.LOGGER: Logger object for logging operations.
+    - image.preview: Function to generate image previews.
+    - operations.log_error_to_db: Function to log errors to a database.
+    - config.DESTINATION: Destination folder for processed files.
+    - config.REPOSITORY: Root folder being monitored.
+    - db_connection.connect_db, db_connection.close_db: Functions for
+      establishing and closing database connections.
+"""
+
 import os
+import signal
 import time
 import uuid
-import logging
-import signal
-from dotenv import load_dotenv
+
 import psycopg2
-from psycopg2 import sql
-from convert import preview
 
-# Configure logger
-logging.basicConfig(level=logging.INFO)
-LOGGER = logging.getLogger(__name__)
-
-# Load environment variables
-load_dotenv()
-
-# Set paths and database URL
-REPOSITORY = os.getenv("INTERNAL_PATH")
-DESTINATION = os.getenv("PREVIEW_PATH")
-DB_URL = os.getenv("DB_URL")
+from config import DESTINATION, REPOSITORY
+from db_connection import close_db, connect_db
+from db_logger import LOGGER, log_shutdown
+from image import preview
+from operations import log_error_to_db
 
 
-def connect_db():
-    """Connect to the database and return the connection and cursor."""
-    conn = psycopg2.connect(DB_URL)
-    cur = conn.cursor()
-    return conn, cur
+def is_directory_empty(directory):
+    """
+    Check if a directory is empty.
 
+    Args:
+        directory (str): Path to the directory.
 
-def close_db(conn, cur):
-    """Close the connection to the database."""
-    cur.close()
-    conn.close()
-
-
-def log_error_to_db(error_text):
-    """Log error to the logs_script table in the database."""
-    conn, cur = connect_db()
-    try:
-        log_id = uuid.uuid4()
-        query = sql.SQL(
-            "INSERT INTO logs_script (id, log) VALUES (%s, %s)"
-        )
-        cur.execute(query, (str(log_id), error_text))
-        conn.commit()
-    except psycopg2.DatabaseError as exc:
-        LOGGER.error("Error logging to the database: %s", exc)
-        conn.rollback()
-    finally:
-        close_db(conn, cur)
-
-
-def log_initialization():
-    """Log script initialization."""
-    LOGGER.info("Script is running.")
-    log_error_to_db("Script is running.")
-
-
-def log_shutdown():
-    """Log script shutdown."""
-    LOGGER.info("Script down.")
-    log_error_to_db("Script down.")
-
-
-log_initialization()
+    Returns:
+        bool: True if the directory is empty, False otherwise.
+    """
+    return not any(os.scandir(directory))
 
 
 def insert_new_directory(dir_id, dir_name, dir_relative_path):
     """
-    Insert a new record into the graphs.
+    Insert a new directory into the database.
+
+    Args:
+        dir_id (uuid.UUID): Unique identifier for the directory.
+        dir_name (str): Name of the directory.
+        dir_relative_path (str): Relative path of the directory.
+
+    Returns:
+        None
     """
     conn, cur = connect_db()
     try:
-        query = sql.SQL(
-            "INSERT INTO graphs (id, name, path) VALUES (%s, %s, %s)"
-        )
+        query = psycopg2.sql.SQL(
+            "INSERT INTO graphs (id, name, path) VALUES (%s, %s, %s)")
         cur.execute(query, (str(dir_id), dir_name, dir_relative_path))
         conn.commit()
-        LOGGER.info(
-            "New dir registered in the db: %s with relative path %s, UUID: %s",
-            dir_name, dir_relative_path, dir_id
-        )
+        LOGGER.info("New dir registered in the db: %s with relative path %s, UUID: %s",  # noqa
+                    dir_name, dir_relative_path, dir_id)
     except psycopg2.DatabaseError as exc:
         inner_error_message = f"Error registering directory in the database: {
             exc}"
@@ -92,12 +80,18 @@ def insert_new_directory(dir_id, dir_name, dir_relative_path):
 
 
 def get_directory_id(dir_relative_path):
-    """Get the ID of a directory if it exists in the database."""
+    """
+    Retrieve the ID of a directory from the database.
+
+    Args:
+        dir_relative_path (str): Relative path of the directory.
+
+    Returns:
+        uuid.UUID or None: UUID of the directory if found, None otherwise.
+    """
     conn, cur = connect_db()
     try:
-        query = sql.SQL(
-            "SELECT id FROM graphs WHERE path = %s"
-        )
+        query = psycopg2.sql.SQL("SELECT id FROM graphs WHERE path = %s")
         cur.execute(query, (dir_relative_path,))
         result = cur.fetchone()
         if result:
@@ -105,8 +99,7 @@ def get_directory_id(dir_relative_path):
         else:
             return None
     except psycopg2.DatabaseError as exc:
-        inner_error_message = f"Error retrieving directory ID from the database: {  # noqa E501
-            exc}"
+        inner_error_message = f"Error retrieving directory ID from the database: {exc}"  # noqa
         LOGGER.error(inner_error_message)
         log_error_to_db(inner_error_message)
     finally:
@@ -114,7 +107,18 @@ def get_directory_id(dir_relative_path):
 
 
 def ensure_directory_registered(full_dir_path):
-    """Ensure that the directory is registered in the database."""
+    """
+    Ensure that a directory is registered in the database.
+
+    If the directory is not already registered, it inserts it into the database
+    with a generated UUID.
+
+    Args:
+        full_dir_path (str): Full path of the directory.
+
+    Returns:
+        uuid.UUID: UUID of the directory.
+    """
     dir_relative_path = os.path.relpath(full_dir_path, REPOSITORY)
     dir_id = get_directory_id(dir_relative_path)
     if dir_id is None:
@@ -124,29 +128,26 @@ def ensure_directory_registered(full_dir_path):
     return dir_id
 
 
-def is_directory_empty(directory):
-    """Check if the folder is empty."""
-    return not any(os.scandir(directory))
-
-
 def monitor_folder(folder_path):
-    """Monitor the specified folder and its subfolders."""
+    """
+    Monitor a folder and its subfolders for changes.
+
+    This function monitors a specified folder and its subfolders for modified
+    files. It registers new directories in the database if they are not already
+    registered. It processes modified files by generating previews, logging
+    operations, and saving metadata to a database.
+
+    Args:
+        folder_path (str): Path to the folder to monitor.
+
+    Returns:
+        None
+    """
     LOGGER.info("Monitoring folder '%s' and its subfolders...", folder_path)
     files_dict = {}
     seen_directories = set()
 
-    for root, dirs, files in os.walk(folder_path):
-        seen_directories.add(root)
-        for file in files:
-            if not file.startswith('.'):
-                file_path = os.path.join(root, file)
-                try:
-                    files_dict[file_path] = os.path.getmtime(file_path)
-                except FileNotFoundError:
-                    files_dict[file_path] = None
-
     def signal_handler(sign, frame):  # pylint: disable=unused-argument
-        """Handler for termination signal."""
         log_shutdown()
         exit(0)
 
@@ -177,7 +178,7 @@ def monitor_folder(folder_path):
                         mt = os.path.getmtime(file_path)
                     except FileNotFoundError:
                         mt = None
-                    if file_path not in files_dict or files_dict[file_path] != mt:  # noqa E501
+                    if file_path not in files_dict or files_dict[file_path] != mt:  # noqa
                         updated_files[file_path] = mt
 
         if updated_files:
@@ -196,7 +197,7 @@ def monitor_folder(folder_path):
                 dir_id = ensure_directory_registered(full_dir_path)
 
                 try:
-                    preview(file_path, destination_path, dir_id)
+                    preview(file_path, folder_path, destination_path, dir_id)
                 except Exception as exc:  # pylint: disable=broad-except
                     file_error_message = f"Error processing file {
                         file_path}: {exc}"
@@ -204,15 +205,3 @@ def monitor_folder(folder_path):
                     log_error_to_db(file_error_message)
 
             files_dict.update(updated_files)
-
-
-if __name__ == "__main__":
-    try:
-        FOLDER_TO_WATCH = REPOSITORY
-        monitor_folder(FOLDER_TO_WATCH)
-    except Exception as e:  # pylint: disable=broad-except
-        error_message = f"An unexpected error occurred: {e}"
-        LOGGER.error(error_message)
-        log_error_to_db(error_message)
-    finally:
-        log_shutdown()
