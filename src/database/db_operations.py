@@ -19,7 +19,9 @@ Functions:
         DPI, dimensions, pixels, size) to the database.
 """
 
+
 import uuid
+import psycopg2
 from psycopg2 import sql, DatabaseError, Error
 from src.database.db_connection import connect_db, close_db
 import src.logs.logger as log
@@ -48,7 +50,9 @@ def log_error_to_db(error_text):
         close_db(conn, cur)
 
 
-def save_to_database(original_filename, preview_filename, graph_id, dpi, dimension, pixels, size, error=None):  # noqa
+def save_to_database(original_filename,
+                     preview_filename,
+                     graph_id, dpi, dimension, pixels, size, name, error=None):  # noqa
     """
     Save information to the database.
 
@@ -60,6 +64,7 @@ def save_to_database(original_filename, preview_filename, graph_id, dpi, dimensi
         dimension (str or None): Dimensions of the image.
         pixels (int or None): Number of pixels in the image.
         size (float or None): Size of the image file in MB.
+        name (str or None): Name of the image.
         error (str or None, optional): Error message (if any). Defaults to None. # noqa
 
     Returns:
@@ -75,8 +80,8 @@ def save_to_database(original_filename, preview_filename, graph_id, dpi, dimensi
             cur.execute(query, (str(entry_id), str(error)))
         else:
             query = sql.SQL(
-                "INSERT INTO graphs_children (id, graph_id, preview, original, dpi, dimension, pixel, size) "  # noqa
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                "INSERT INTO graphs_children (id, graph_id, preview, original, dpi, dimension, pixel, size, name) "  # noqa
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
             )
             cur.execute(query, (
                 str(entry_id),
@@ -86,7 +91,8 @@ def save_to_database(original_filename, preview_filename, graph_id, dpi, dimensi
                 dpi,
                 dimension,
                 pixels,
-                size
+                size,
+                name
             ))
         conn.commit()
         log.LOGGER.info("Information saved to the database successfully!")
@@ -155,3 +161,29 @@ def insert_new_directory(dir_id, dir_name, dir_relative_path):
         conn.rollback()
     finally:
         close_db(conn, cur)
+
+
+def is_file_registered(file_path):
+    """
+    Check if a file is already registered in the database.
+
+    Args:
+        file_path (str): Path to the file.
+
+    Returns:
+        bool: True if the file is registered, False otherwise.
+    """
+    conn = None
+    try:
+        conn, cur = connect_db()
+        query = "SELECT 1 FROM graphs_children WHERE original = %s"
+        cur.execute(query, (file_path,))
+        result = cur.fetchone()
+        cur.close()
+        return result is not None
+    except (Exception, psycopg2.DatabaseError) as error:  # pylint: disable=broad-except # noqa
+        log.LOGGER.error("Database error: %s", error)
+        return False
+    finally:
+        if conn is not None:
+            conn.close()

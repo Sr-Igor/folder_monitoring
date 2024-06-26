@@ -22,13 +22,12 @@ Functions:
 
 import os
 import warnings
-
 import psd_tools
 from PIL import Image, ImageFile
 
 from src.config.config import QUALITY, PIXEL_LIMIT
 from src.logs.logger import LOGGER
-from src.database.db_operations import save_to_database
+from src.database.db_operations import save_to_database, is_file_registered
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -56,7 +55,7 @@ def preview(arch,
             folder_path,
             folder_destiny='previews',
             graph_id='none',
-            quality=int(QUALITY)):  # noqa
+            quality=int(QUALITY)):
     """
     Generate a preview of an image.
 
@@ -76,7 +75,13 @@ def preview(arch,
     Returns:
         None
     """
-    LOGGER.info("Viewing %s...", arch)
+    LOGGER.info("Processing %s...", arch)
+
+    # Verifica se o arquivo já está registrado
+    if is_file_registered(arch):
+        LOGGER.info("File %s is already registered. Skipping conversion.", arch)  # noqa
+        return
+
     if not os.path.exists(folder_destiny):
         os.makedirs(folder_destiny)
 
@@ -118,14 +123,13 @@ def preview(arch,
         width, height = img.size
         dimension = f"{height}x{width}" if width and height else None
         pixels = width * height if width and height else None
-        size = os.path.getsize(output_path) / (1024 *
-                                               1024) if os.path.exists(output_path) else None  # noqa
+        size = os.path.getsize(output_path) / (1024 * 1024) if os.path.exists(output_path) else None  # noqa
 
         LOGGER.info("Conversion of %s completed successfully!", arch)
-        save_to_database(arch, output_path, graph_id,
-                         dpi, dimension, pixels, size)
+        save_to_database(arch, output_path, graph_id, dpi,
+                         dimension, pixels, size, name)
 
     except Exception as e:  # pylint: disable=broad-except
         LOGGER.error("An error occurred while converting the file: %s", e)
         save_to_database(arch, None, graph_id, None,
-                         None, None, None, error=str(e))
+                         None, None, None, None, str(e))
