@@ -26,6 +26,7 @@ import os
 import signal
 import time
 import uuid
+import sys
 
 from src.config.config import DESTINATION, REPOSITORY
 from src.logs.logger import LOGGER, log_shutdown
@@ -101,7 +102,7 @@ def monitor_folder(folder_path, force_resync=False):
     def signal_handler(sign, frame):  # pylint: disable=unused-argument
         """Handler for termination signal."""
         log_shutdown()
-        exit(0)
+        sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
