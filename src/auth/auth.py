@@ -1,31 +1,10 @@
-"""
-Module for a custom HTTP request handler with token-based
-authorization and CORS support.
 
-This module defines the `AuthHTTPRequestHandler` class,
-which extends `SimpleHTTPRequestHandler` to add Bearer
-token validation for GET requests and support for
-Cross-Origin Resource Sharing (CORS).
-
-Classes:
-    AuthHTTPRequestHandler: Custom HTTP request handler that
-    implements token-based authorization and CORS.
-
-Dependencies:
-    - SimpleHTTPRequestHandler: Base HTTP request handler from
-    the standard library `http.server`.
-    - AUTH_TOKEN: Expected authorization token, imported from the
-    `config` module.
-    - WEB_URL: URL of the allowed site for CORS requests, imported
-    from the `config` module.
-
-Constants:
-    - AUTH_TOKEN: Authorization token for validating requests.
-    - WEB_URL: Origin URL allowed for CORS.
-"""
-
+import os
 from http.server import SimpleHTTPRequestHandler
+from urllib.parse import parse_qs, urlparse
+
 from src.config.config import AUTH_TOKEN, WEB_URL
+from src.zip.zip import create_zip_from_files
 
 
 class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
@@ -76,7 +55,28 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
             self.wfile.write(b'Unauthorized')
             return
 
-        super().do_GET()
+        parsed_path = urlparse(self.path)
+        if parsed_path.path == '/download':
+            query_params = parse_qs(parsed_path.query)
+            if 'directory' not in query_params:
+                self.send_response(400)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'Missing directory parameter')
+                return
+
+            file_paths = query_params['directory'][0].split(',')
+            zip_path = create_zip_from_files(file_paths)
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/zip')
+            self.send_header(
+                'Content-Disposition', f'attachment; filename="{os.path.basename(zip_path)}"')  # noqa
+            self.end_headers()
+            with open(zip_path, 'rb') as file:
+                self.wfile.write(file.read())
+            os.remove(zip_path)
+        else:
+            super().do_GET()
 
     def log_message(self, format, *args):  # pylint: disable=redefined-builtin
         """
