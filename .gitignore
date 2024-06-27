@@ -3,3 +3,4 @@ bucket_test
 .env
 backup
 __pycache__
+exe

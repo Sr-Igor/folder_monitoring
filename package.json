@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "bash sh/clear.sh && pyinstaller --clean --distpath ./exe pyinstaller.spec && bash sh/set.sh && bash sh/build.sh",
+    "build": "bash sh/clear.sh && pyinstaller --clean --distpath ./exe pyinstaller.spec && bash sh/set.sh && bash sh/build.sh && cd exe/main && ./watch && cd ../..",
     "clean": "bash sh/clear.sh",
     "set": "bash sh/set.sh",
     "compile": "bash sh/build.sh",
