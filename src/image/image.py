@@ -77,11 +77,6 @@ def preview(arch,
     """
     LOGGER.info("Processing %s...", arch)
 
-    # Verifica se o arquivo já está registrado
-    if is_file_registered(arch):
-        LOGGER.info("File %s is already registered. Skipping conversion.", arch)  # noqa
-        return
-
     if not os.path.exists(folder_destiny):
         os.makedirs(folder_destiny)
 
@@ -126,6 +121,11 @@ def preview(arch,
         size = os.path.getsize(output_path) / (1024 * 1024) if os.path.exists(output_path) else None  # noqa
 
         LOGGER.info("Conversion of %s completed successfully!", arch)
+
+        if is_file_registered(arch):
+            LOGGER.info("File %s is already registered. Skipping re-save.", arch)  # noqa
+            return
+
         save_to_database(arch, output_path, graph_id, dpi,
                          dimension, pixels, size, name)
 
