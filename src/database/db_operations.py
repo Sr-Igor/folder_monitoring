@@ -21,10 +21,12 @@ Functions:
 
 
 import uuid
+
 import psycopg2
-from psycopg2 import sql, DatabaseError, Error
-from src.database.db_connection import connect_db, close_db
+from psycopg2 import DatabaseError, Error, sql
+
 import src.logs.logger as log
+from src.database.db_connection import close_db, connect_db
 
 
 def log_error_to_db(error_text):
@@ -187,3 +189,71 @@ def is_file_registered(file_path):
     finally:
         if conn is not None:
             conn.close()
+
+
+def fetch_filtered_items(query_values, states):
+    """
+    Fetch items from the database where 'original' matches query_values
+    and 'state' is in the provided states.
+
+    Args:
+        query_values (list): List of values to match in the 'original' column.
+        states (list): List of states to match in the 'state' column.
+
+    Returns:
+        list: List of tuples representing the matching rows.
+    """
+    conn, cur = connect_db()
+    try:
+        placeholders = ', '.join(['%s' for _ in query_values])
+        state_placeholders = ', '.join(['%s' for _ in states])
+
+        sql_query = sql.SQL("""
+            SELECT original, id, preview FROM graphs_children
+            WHERE id IN ({query_placeholders})
+            AND status IN ({state_placeholders})
+        """).format(
+            query_placeholders=sql.SQL(placeholders),
+            state_placeholders=sql.SQL(state_placeholders)
+        )
+
+        cur.execute(sql_query, (*query_values, *states))
+        results = cur.fetchall()
+        return results
+    except DatabaseError as e:
+        raise e
+    finally:
+        close_db(conn, cur)
+
+
+def download_log(ids, responsible_id, mode):
+    """
+    Insert a new download log into the database.
+
+    Args:
+        ids (list): List of IDs to log.
+        responsible_id (str): ID of the responsible user.
+        mode: Mode of the download (original or preview).
+
+    Returns:
+        None
+    """
+
+    conn, cur = connect_db()
+    try:
+        for item in ids:
+            log_id = uuid.uuid4()
+            query = sql.SQL(
+                "INSERT INTO logs_graphs_children (id, graph_child_id, responsible_id, type, mode) VALUES (%s, %s, %s, %s, %s)")  # noqa
+            cur.execute(query, (str(log_id), item,
+                        responsible_id, "DOWNLOAD", mode))
+        conn.commit()
+        log.LOGGER.info("Download log registered in the db: %s", ids)
+    except DatabaseError as exc:
+        inner_error_message = f"Error registering download log in the database: {  # noqa
+            exc}"
+        log.LOGGER.error(inner_error_message)
+        log_error_to_db(inner_error_message)
+        conn.rollback()
+    finally:
+        close_db(conn, cur)
