@@ -56,7 +56,7 @@ Usage Example:
 
 import os
 from http.server import SimpleHTTPRequestHandler
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, unquote
 
 import requests
 
@@ -204,7 +204,40 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
                     e}'.encode('utf-8'))
                 return
         else:
-            super().do_GET()
+            file_path = unquote(parsed_path.path)
+
+            if os.path.isabs(file_path):
+                file_path = os.path.join('/', file_path.lstrip('/'))
+
+                if not os.path.exists(file_path):
+                    self.send_response(404)
+                    self.send_header('Content-Type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(b'File not found or invalid path')
+                    return
+
+                if not os.access(file_path, os.R_OK):
+                    self.send_response(403)
+                    self.send_header('Content-Type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(b'Forbidden: Cannot read file')
+                    return
+
+                self.path = file_path  # noqa # pylint: disable=attribute-defined-outside-init
+
+                is_file = os.path.isfile(self.path)
+
+                if is_file:
+                    file = open(self.path, 'rb')
+                    self.send_response(200)
+                    self.send_header(
+                        'Content-Type', 'application/octet-stream')
+                    self.send_header('Content-Disposition', f'attachment; filename="{os.path.basename(self.path)}"')  # noqa
+                    self.end_headers()
+                    self.wfile.write(file.read())
+                    file.close()
+                else:
+                    super().do_GET()
 
     def log_message(self, format, *args):  # pylint: disable=redefined-builtin
         """
