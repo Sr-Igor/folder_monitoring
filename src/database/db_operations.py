@@ -54,7 +54,13 @@ def log_error_to_db(error_text):
 
 def save_to_database(original_filename,
                      preview_filename,
-                     graph_id, dpi, dimension, pixels, size, name, error=None):  # noqa
+                     graph_id,
+                     dpi,  # pylint: disable=unused-argument
+                     dimension,  # pylint: disable=unused-argument
+                     pixels,  # pylint: disable=unused-argument
+                     size,
+                     name,
+                     error=None):
     """
     Save information to the database.
 
@@ -82,17 +88,14 @@ def save_to_database(original_filename,
             cur.execute(query, (str(entry_id), str(error)))
         else:
             query = sql.SQL(
-                "INSERT INTO graphs_children (id, graph_id, preview, original, dpi, dimension, pixel, size, name) "  # noqa
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                "INSERT INTO graphs_children (id, graph_id, preview, original, size, name) "  # noqa
+                "VALUES (%s, %s, %s, %s, %s, %s)"
             )
             cur.execute(query, (
                 str(entry_id),
                 str(graph_id),
                 preview_filename,
                 original_filename,
-                dpi,
-                dimension,
-                pixels,
                 size,
                 name
             ))

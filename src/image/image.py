@@ -118,7 +118,10 @@ def preview(arch,
         width, height = img.size
         dimension = f"{height}x{width}" if width and height else None
         pixels = width * height if width and height else None
-        size = os.path.getsize(output_path) / (1024 * 1024) if os.path.exists(output_path) else None  # noqa
+
+        # Get size of the original file
+        size_original = os.path.getsize(arch) / (1024 * 1024) if os.path.exists(arch) else None  # noqa
+        size_original_mb = f"{size_original:.2f}" if size_original else None
 
         LOGGER.info("Conversion of %s completed successfully!", arch)
 
@@ -127,7 +130,7 @@ def preview(arch,
             return
 
         save_to_database(arch, output_path, graph_id, dpi,
-                         dimension, pixels, size, name)
+                         dimension, pixels, size_original_mb, name)
 
     except Exception as e:  # pylint: disable=broad-except
         LOGGER.error("An error occurred while converting the file: %s", e)
