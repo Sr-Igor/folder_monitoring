@@ -1,68 +1,30 @@
 """
-Module for a custom HTTP request handler with token-based authentication and CORS support. # noqa
+Module to handle HTTP requests with token-based authorization and file
+downloading.
 
-This module defines the `AuthHTTPRequestHandler` class which extends `SimpleHTTPRequestHandler` 
-to add basic Bearer token authentication for GET requests and CORS headers support.
+This module defines a custom HTTP request handler, `AuthHTTPRequestHandler`,
+which extends
+`SimpleHTTPRequestHandler` to include token-based authorization, CORS support,
+and file download capabilities.
 
 Classes:
-- AuthHTTPRequestHandler: Custom HTTP request handler that adds token-based authorization for GET 
-  requests and handles CORS for cross-origin requests.
+    AuthHTTPRequestHandler: Handles HTTP GET requests, providing secure file
+                            downloads and CORS support.
 
-Methods:
-- do_GET(self):
-    Handles GET requests.
-    Verifies the 'Authorization' header for a valid Bearer token.
-    If the token is valid, processes the request accordingly.
-    If the token is missing or invalid, sends a 401 Unauthorized response.
-    Also handles specific download requests, checking permissions, and creating a ZIP file 
-    from the requested files.
+Usage:
+    from your_module_name import AuthHTTPRequestHandler
 
-- log_message(self, format, *args):
-    Overrides the `log_message` method to suppress logging of messages to the console.
-    Args:
-        format (str): The format string.
-        *args: Additional arguments to format into the message.
-
-- end_headers(self):
-    Adds CORS headers and finalizes the HTTP response.
-    Sends CORS headers to allow cross-origin requests from the specified domain.
-    Calls the superclass's `end_headers` method to finalize the response.
-
-- do_OPTIONS(self):
-    Handles OPTIONS requests.
-    Responds to OPTIONS requests with allowed HTTP methods and headers for CORS purposes.
-    
-Dependencies:
-- os: Module for interacting with the operating system.
-- requests: Library for making HTTP requests.
-- SimpleHTTPRequestHandler: Base class for simple HTTP request handlers.
-- parse_qs, urlparse: Functions for parsing URLs and query parameters.
-- AUTH_TOKEN, WEB_URL: Authorization token and CORS URL from the configuration module.
-- download_log, fetch_filtered_items: Database operation functions from `db_operations`.
-- create_zip_from_files: Function for creating ZIP files from the `zip` module.
-
-Environment:
-- DOWNLOAD_URL: Download URL obtained from environment variables.
-
-Author:
-- The module is designed to add basic authentication and CORS support for an HTTP server.
-
-Usage Example:
-- This module is used as part of an HTTP server that requires token-based authentication to 
-  access download resources. It can be integrated into a larger server to serve files 
-  with appropriate authentication.
+    # Use this handler with an HTTP server
+    handler = AuthHTTPRequestHandler
 """
-
 
 import os
 from http.server import SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse, unquote
-
 import requests
-
 from src.config.config import AUTH_TOKEN, WEB_URL
-from src.database.db_operations import (DatabaseError, download_log,  # noqa
-                                        fetch_filtered_items)
+from src.database.db_operations import (
+    DatabaseError, download_log, fetch_filtered_items)
 from src.zip.zip import create_zip_from_files
 
 
@@ -71,29 +33,18 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
     Custom HTTP request handler with basic token-based
     authorization and CORS support.
 
-    This handler validates a Bearer token present in the
-    authorization header for GET requests. It also sets CORS
-    headers to allow requests from the specified domain.
-
-    Methods:
-        do_GET: Handles GET requests, checking the authorization
-        header.
-        log_message: Suppresses logging of messages to the
-        console.
-        end_headers: Adds CORS headers and finalizes the HTTP
-        response.
-        do_OPTIONS: Handles OPTIONS requests for CORS support.
+    This handler processes HTTP GET requests, checking for a valid
+    authorization token and handling requests for file downloads.
+    It also supports CORS for cross-origin resource sharing.
     """
 
     def do_GET(self):
         """
         Handle GET requests.
 
-        This method checks the 'Authorization' header for a
-        valid Bearer token. If the token is valid, it calls
-        the superclass's do_GET method to serve the request.
-        If the token is missing or invalid, it sends a 401
-        Unauthorized response.
+        This method checks for a valid 'Authorization' header and processes
+        file download requests. It supports downloading files in ZIP
+        format if requested, and logs download activity.
 
         Returns:
             None
@@ -116,7 +67,6 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
 
         parsed_path = urlparse(self.path)
         if parsed_path.path == '/download':
-
             query_params = parse_qs(parsed_path.query)
             if 'directory' not in query_params:
                 self.send_response(400)
@@ -127,14 +77,12 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
 
             file_paths = query_params['directory'][0].split(',')
 
-            # Fazer verificação de permissão
             download_url = os.getenv('DOWNLOAD_URL')
             if not download_url:
                 self.send_response(500)
                 self.send_header('Content-Type', 'text/plain')
                 self.end_headers()
-                self.wfile.write(
-                    b'Missing DOWNLOAD_URL environment variable')
+                self.wfile.write(b'Missing DOWNLOAD_URL environment variable')
                 return
 
             user_token = self.headers.get('x-user-token')
@@ -155,7 +103,7 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
                     list_preview = [item[2] for item in results]
                     list_of_ids = [item[1] for item in results]
 
-                    mode = query_params['mode'][0]
+                    mode = query_params.get('mode', ['original'])[0]
 
                     list_of_files = list_original if mode == 'original' else list_preview  # noqa
                     list_not_found = [
@@ -201,90 +149,87 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
                 self.send_header('Content-Type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(f'Error fetching download: {
-                    e}'.encode('utf-8'))
+                                 e}'.encode('utf-8'))
                 return
         else:
             file_path = unquote(parsed_path.path)
 
-            if os.path.isabs(file_path):
-                file_path = os.path.join('/', file_path.lstrip('/'))
+            if not os.path.isabs(file_path):
+                file_path = os.path.join(os.getcwd(), file_path.lstrip('/'))
 
-                if not os.path.exists(file_path):
-                    self.send_response(404)
-                    self.send_header('Content-Type', 'text/plain')
-                    self.end_headers()
-                    self.wfile.write(b'File not found or invalid path')
-                    return
+            if not os.path.exists(file_path):
+                self.send_response(404)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'File not found or invalid path')
+                return
 
-                if not os.access(file_path, os.R_OK):
-                    self.send_response(403)
-                    self.send_header('Content-Type', 'text/plain')
-                    self.end_headers()
-                    self.wfile.write(b'Forbidden: Cannot read file')
-                    return
+            if not os.access(file_path, os.R_OK):
+                self.send_response(403)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'Forbidden: Cannot read file')
+                return
 
-                self.path = file_path  # noqa # pylint: disable=attribute-defined-outside-init
+            self_path = file_path
 
-                is_file = os.path.isfile(self.path)
+            is_file = os.path.isfile(self_path)
 
-                if is_file:
-                    file = open(self.path, 'rb')
+            if is_file:
+                with open(self_path, 'rb') as file:
                     self.send_response(200)
                     self.send_header(
                         'Content-Type', 'application/octet-stream')
-                    self.send_header('Content-Disposition', f'attachment; filename="{os.path.basename(self.path)}"')  # noqa
+                    self.send_header(
+                        'Content-Disposition', f'attachment; filename="{os.path.basename(self_path)}"')  # noqa
                     self.end_headers()
                     self.wfile.write(file.read())
-                    file.close()
-                else:
-                    super().do_GET()
+            else:
+                super().do_GET()
 
-    def log_message(self, format, *args):  # pylint: disable=redefined-builtin
+    def log_message(self, *args):
         """
-        Override the default log_message to suppress logging.
+        Override log_message to suppress logging.
 
-        This method is used to suppress the logging of HTTP
-        requests to the console.
+        This method overrides the default log_message method to suppress
+        logging of HTTP requests.
 
         Args:
             format (str): The format string.
-            *args: Additional arguments to format into the
-            message.
+            *args: Additional arguments for formatting.
 
         Returns:
             None
         """
-        pass  # pylint: disable=unnecessary-pass
 
     def end_headers(self):
         """
-        Send CORS headers and end the HTTP response.
+        Add CORS headers before sending response headers.
 
-        This method adds CORS headers to the response to allow
-        cross-origin requests from the specified URL, and then
-        calls the superclass's end_headers method to finalize
-        the response.
+        This method adds headers for CORS (Cross-Origin Resource Sharing)
+        support before ending the headers.
 
         Returns:
             None
         """
         self.send_header('Access-Control-Allow-Origin', WEB_URL)
         self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Authorization')
-        self.send_header('Access-Control-Allow-Headers', 'X-User-Token')
+        self.send_header('Access-Control-Allow-Headers',
+                         'Authorization, X-User-Token')
         super().end_headers()
 
     def do_OPTIONS(self):  # pylint: disable=invalid-name
         """
-        Handle OPTIONS requests.
+        Handle OPTIONS requests for CORS preflight.
 
-        This method responds to OPTIONS requests with the
-        allowed HTTP methods and headers for CORS purposes.
+        This method responds to OPTIONS requests by setting the necessary
+        headers for CORS preflight requests.
 
         Returns:
             None
         """
         self.send_response(200)
         self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Authorization')
+        self.send_header('Access-Control-Allow-Headers',
+                         'Authorization, X-User-Token')
         self.end_headers()

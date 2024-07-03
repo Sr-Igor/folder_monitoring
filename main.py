@@ -10,7 +10,7 @@ Dependencies:
     - config.REPOSITORY: Root folder to monitor for changes.
     - config.PORT: Port number for the server.
     - monitor.monitor_folder: Function to monitor a folder and its subfolders.
-    - server.run_server_in_thread: Function to run a server in a separate thread.
+    - server.run_https_server_in_thread: Function to run a server in a separate thread.
 
 Functions:
     main: Main function to execute the repository monitoring application.
@@ -19,7 +19,7 @@ Functions:
 from src.logs.logger import log_initialization, log_shutdown, LOGGER
 from src.config.config import REPOSITORY, PORT,  ABSOLUTE_PATH
 from src.monitor.monitor import monitor_folder
-from src.server.server import run_server_in_thread
+from src.server.server import run_https_server_in_thread
 from src.database.db_operations import log_error_to_db
 
 
@@ -39,7 +39,7 @@ def main():
     """
     try:
         log_initialization()
-        run_server_in_thread(ABSOLUTE_PATH, PORT, "Repository Server")
+        run_https_server_in_thread(ABSOLUTE_PATH, PORT, "Repository Server")
         monitor_folder(REPOSITORY)
     except Exception as e:  # pylint: disable=broad-except
         error_message = f"An unexpected error occurred: {e}"

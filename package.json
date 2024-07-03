@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "build": "bash sh/clear.sh && pyinstaller --clean --distpath ./exe pyinstaller.spec && bash sh/set.sh && bash sh/build.sh && cd exe/main && ./watch && cd ../..",
-    "build:linux": "bash sh/clear.sh && pyinstaller --clean --distpath ./linux/exe pyinstaller.linux.spec && bash sh/set.sh && bash sh/build.sh",
     "clean": "bash sh/clear.sh",
     "set": "bash sh/set.sh",
     "compile": "bash sh/build.sh",

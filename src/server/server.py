@@ -1,39 +1,52 @@
 """
-Server management module.
+Module to start an HTTPS server with SSL/TLS encryption in Python.
 
-This module provides functions to start an HTTP server in a separate thread,
-using the specified directory, port, and server name. It utilizes threading
-for concurrent execution and HTTPServer for handling HTTP requests.
+This module provides functionality to start an HTTPS server that serves files
+from a specified directory and runs the server in a separate thread. It uses
+SSL/TLS for secure communication and custom request handling.
 
-Dependencies:
-    - os: Provides operating system functionalities.
-    - threading: Supports threading capabilities for concurrent execution.
-    - http.server.HTTPServer: Implements HTTP server functionality.
-    - auth.AuthHTTPRequestHandler: Custom HTTP request handler with authentication. # noqa
-    - db_logger.LOGGER: Logger object for logging server events.
-    - config.IP_SERVER: IP address or hostname to bind the server.
+Classes:
+    AuthHTTPRequestHandler: Custom request handler for authentication.
 
 Functions:
-    start_http_server: Starts an HTTP server serving files from a specified directory.
-    run_server_in_thread: Runs an HTTP server in a separate thread.
+    start_https_server(directory, port=8000, server_name="Server"): Starts an
+    HTTPS server.
+    run_https_server_in_thread(directory, port, server_name="Server"): Runs
+    the HTTPS server in a separate thread.
+
+Usage:
+    import your_module_name
+
+    # Start server directly
+    your_module_name.start_https_server("/path/to/directory", port=8443,
+    server_name="MyServer")
+
+    # Run server in a separate thread
+    your_module_name.run_https_server_in_thread("/path/to/directory",
+    port=8443, server_name="MyServer")
 """
 
 import os
 import threading
 from http.server import HTTPServer
+import ssl
 from src.auth.auth import AuthHTTPRequestHandler
 from src.logs.logger import LOGGER
-from src.config.config import IP_SERVER
+from src.config.config import IP_SERVER, CERT_FILE, KEY_FILE
 
 
-def start_http_server(directory, port=8000, server_name="Server"):
+def start_https_server(directory, port=8000, server_name="Server"):
     """
-    Start an HTTP server serving files from a specified directory.
+    Starts an HTTPS server serving files from the specified directory.
+
+    This function changes the current working directory to the given directory,
+    sets up an HTTP server with SSL/TLS encryption, and serves files using
+    the custom `AuthHTTPRequestHandler` class.
 
     Args:
-        directory (str): Directory path from which to serve files.
-        port (int, optional): Port number for the HTTP server. Defaults to 8000. # noqa
-        server_name (str, optional): Name of the server. Defaults to "Server".
+        directory (str): The directory from which to serve files.
+        port (int, optional): The port number on which the server listens. Defaults to 8000. # noqa
+        server_name (str, optional): The name of the server used in logging. Defaults to "Server".
 
     Returns:
         None
@@ -41,23 +54,34 @@ def start_http_server(directory, port=8000, server_name="Server"):
     os.chdir(directory)
     handler = AuthHTTPRequestHandler
     httpd = HTTPServer((IP_SERVER, int(port)), handler)
-    LOGGER.info("%s serving HTTP on %s in port %s from directory: %s",
+
+    # SSL/TLS configuration using SSLContext
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certfile=CERT_FILE, keyfile=KEY_FILE)
+
+    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+
+    LOGGER.info("%s serving HTTPS on %s in port %s from directory: %s",
                 server_name, IP_SERVER, port, directory)
     httpd.serve_forever()
 
 
-def run_server_in_thread(directory, port, server_name="Server"):
+def run_https_server_in_thread(directory, port, server_name="Server"):
     """
-    Run an HTTP server in a separate thread.
+    Runs the HTTPS server in a separate thread.
+
+    This function starts the HTTPS server in a new thread, allowing it to run
+    concurrently with other code.
 
     Args:
-        directory (str): Directory path from which to serve files.
-        port (int): Port number for the HTTP server.
-        server_name (str, optional): Name of the server. Defaults to "Server".
+        directory (str): The directory from which to serve files.
+        port (int): The port number on which the server listens.
+        server_name (str, optional): The name of the server used in logging.
+        Defaults to "Server".
 
     Returns:
         None
     """
-    server_thread = threading.Thread(target=start_http_server, args=(
+    server_thread = threading.Thread(target=start_https_server, args=(
         directory, port, server_name), daemon=True)
     server_thread.start()
