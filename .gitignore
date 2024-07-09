@@ -6,5 +6,5 @@ __pycache__
 exe
 previews
 repository
-# server.crt
-# server.key
+server.crt
+server.key
