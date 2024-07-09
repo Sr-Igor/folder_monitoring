@@ -22,9 +22,9 @@ import os
 from http.server import SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse, unquote
 import requests
-from src.config.config import AUTH_TOKEN, WEB_URL
+from src.config.config import AUTH_TOKEN, WEB_URL, DOWNLOAD_URL, LOG_URL
 from src.database.db_operations import (
-    DatabaseError, download_log, fetch_filtered_items)
+    DatabaseError, fetch_filtered_items)
 from src.zip.zip import create_zip_from_files
 
 
@@ -77,12 +77,18 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
 
             file_paths = query_params['directory'][0].split(',')
 
-            download_url = os.getenv('DOWNLOAD_URL')
-            if not download_url:
+            if not DOWNLOAD_URL:
                 self.send_response(500)
                 self.send_header('Content-Type', 'text/plain')
                 self.end_headers()
                 self.wfile.write(b'Missing DOWNLOAD_URL environment variable')
+                return
+
+            if not LOG_URL:
+                self.send_response(500)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'Missing LOG_URL environment variable')
                 return
 
             user_token = self.headers.get('x-user-token')
@@ -90,11 +96,11 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
             headers = {'Authorization': f'Bearer {user_token}'}
             try:
                 response = requests.get(
-                    download_url, headers=headers, timeout=10)
+                    DOWNLOAD_URL, headers=headers, timeout=10)
                 response.raise_for_status()
 
                 filters = response.json().get('data')
-                response_id = response.json().get('id')
+                # response_id = response.json().get('id')
 
                 try:
                     results = fetch_filtered_items(file_paths, filters)
@@ -135,7 +141,9 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
 
                     os.remove(zip_path)
 
-                    download_log(list_of_ids, response_id, mode)
+                    client_id = query_params.get('client', [None])[0]
+                    response = requests.put(
+                        LOG_URL, headers=headers, timeout=10, json={'client_id': client_id, 'graphs': list_of_ids, 'mode': mode})  # noqa
 
                 except DatabaseError as e:
                     self.send_response(500)
@@ -186,21 +194,6 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
                     self.wfile.write(file.read())
             else:
                 super().do_GET()
-
-    def log_message(self, *args):
-        """
-        Override log_message to suppress logging.
-
-        This method overrides the default log_message method to suppress
-        logging of HTTP requests.
-
-        Args:
-            format (str): The format string.
-            *args: Additional arguments for formatting.
-
-        Returns:
-            None
-        """
 
     def end_headers(self):
         """

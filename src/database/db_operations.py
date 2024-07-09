@@ -227,36 +227,3 @@ def fetch_filtered_items(query_values, states):
         raise e
     finally:
         close_db(conn, cur)
-
-
-def download_log(ids, responsible_id, mode):
-    """
-    Insert a new download log into the database.
-
-    Args:
-        ids (list): List of IDs to log.
-        responsible_id (str): ID of the responsible user.
-        mode: Mode of the download (original or preview).
-
-    Returns:
-        None
-    """
-
-    conn, cur = connect_db()
-    try:
-        for item in ids:
-            log_id = uuid.uuid4()
-            query = sql.SQL(
-                "INSERT INTO logs_graphs_children (id, graph_child_id, responsible_id, type, mode) VALUES (%s, %s, %s, %s, %s)")  # noqa
-            cur.execute(query, (str(log_id), item,
-                        responsible_id, "DOWNLOAD", mode))
-        conn.commit()
-        log.LOGGER.info("Download log registered in the db: %s", ids)
-    except DatabaseError as exc:
-        inner_error_message = f"Error registering download log in the database: {  # noqa
-            exc}"
-        log.LOGGER.error(inner_error_message)
-        log_error_to_db(inner_error_message)
-        conn.rollback()
-    finally:
-        close_db(conn, cur)
