@@ -1,27 +1,3 @@
-"""
-Module for monitoring a folder and its subfolders, registering directories in a
-database, and processing modified files.
-
-This module includes functions for:
-- Monitoring a specified folder and its subfolders.
-- Registering new directories in a database if they are not already registered.
-- Processing modified files by generating previews, logging operations, and
-  saving metadata to a database.
-
-Dependencies:
-    - os: Provides access to operating system functionalities.
-    - signal: Allows handling of signals such as SIGINT and SIGTERM.
-    - psycopg2: PostgreSQL adapter for Python.
-    - uuid: Generates UUIDs for directory IDs.
-    - db_logger.LOGGER: Logger object for logging operations.
-    - image.preview: Function to generate image previews.
-    - operations.log_error_to_db: Function to log errors to a database.
-    - config.DESTINATION: Destination folder for processed files.
-    - config.REPOSITORY: Root folder being monitored.
-    - db_connection.connect_db, db_connection.close_db: Functions for
-      establishing and closing database connections.
-"""
-
 import os
 import signal
 import sys
@@ -104,6 +80,7 @@ def signal_handler(sign, frame):
 
 def monitor_folder(folder_path, force_resync=False):
     LOGGER.info("Monitoring folder '%s' and its subfolders...", folder_path)
+    folder_path = os.path.normpath(folder_path)  # Normalize folder path
 
     event_handler = FolderMonitorHandler()
     observer = Observer()
@@ -119,3 +96,7 @@ def monitor_folder(folder_path, force_resync=False):
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
+
+
+if __name__ == "__main__":
+    monitor_folder(REPOSITORY)
