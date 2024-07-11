@@ -161,6 +161,8 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
                 return
         else:
             file_path = unquote(parsed_path.path)
+            if file_path.startswith('/'):
+                file_path = file_path[1:]
 
             if not os.path.isabs(file_path):
                 file_path = os.path.join(os.getcwd(), file_path.lstrip('/'))
