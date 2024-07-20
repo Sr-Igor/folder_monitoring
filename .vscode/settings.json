@@ -1,3 +1,17 @@
 {
-  "cSpell.words": ["LANCZOS", "psycopg", "scandir", "subfolders", "topil"]
+  "cSpell.words": [
+    "astype",
+    "cmyk",
+    "dtype",
+    "fromarray",
+    "imwrite",
+    "LANCZOS",
+    "ndim",
+    "psycopg",
+    "scandir",
+    "srgb",
+    "subfolders",
+    "tifffile",
+    "topil"
+  ]
 }
