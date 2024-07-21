@@ -41,6 +41,7 @@ Image.MAX_IMAGE_PIXELS = 250000000000
 
 # Ignore warnings
 warnings.filterwarnings("ignore", category=Image.DecompressionBombWarning)
+warnings.filterwarnings("ignore", category=UserWarning, module='psd_tools')
 
 
 def is_complex_tiff(image):
@@ -51,7 +52,8 @@ def is_complex_tiff(image):
             return True
         return False
     except Exception as e:  # pylint: disable=broad-except
-        LOGGER.info("ICC profile not opened return false by default: %s", e)
+        LOGGER.info(
+            "[NORMAL ERROR OPEN PILLOW]: ICC profile not opened return false by default: %s", e)  # noqa
         return False
 
 
