@@ -4,13 +4,17 @@
     "cmyk",
     "dtype",
     "fromarray",
+    "imread",
+    "IMREAD",
     "imwrite",
     "LANCZOS",
+    "magick",
     "ndim",
     "psycopg",
     "scandir",
     "srgb",
     "subfolders",
+    "subsampling",
     "tifffile",
     "topil"
   ]

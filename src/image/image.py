@@ -31,6 +31,7 @@ import tifffile
 from PIL import Image, ImageFile, ImageCms
 import cv2
 import numpy as np
+from src.image.channels import run_conversion
 
 from src.config.config import QUALITY, PIXEL_LIMIT
 from src.logs.logger import LOGGER
@@ -42,6 +43,28 @@ Image.MAX_IMAGE_PIXELS = 250000000000
 # Ignore warnings
 warnings.filterwarnings("ignore", category=Image.DecompressionBombWarning)
 warnings.filterwarnings("ignore", category=UserWarning, module='psd_tools')
+
+
+def unusual_channels(image):
+    """
+    Check if the image has more than 4 channels.
+
+    Args:
+        image (str): Path to the image file.
+
+    Returns:
+        bool: True if the image has more than 4 channels, False otherwise.
+    """
+
+    try:
+        img = cv2.imread(  # pylint: disable=no-member
+            image, cv2.IMREAD_UNCHANGED)  # pylint: disable=no-member
+        if img.shape[2] > 4:
+            return True
+        return False
+    except Exception as e:  # pylint: disable=broad-except
+        LOGGER.info("[NORMAL ERROR]: Error while checking channels: %s", e)
+        return True
 
 
 def is_complex_tiff(image):
@@ -150,7 +173,15 @@ def preview(arch,
     if not os.path.exists(folder_destiny):
         os.makedirs(folder_destiny)
 
+    module = arch.replace(folder_path, '').replace('\\', '/').split('.')
+    path = module[0].split('/')
+    name = path[-1]
+    LOGGER.info("Converting %s... with %s of quality", name, quality)
+
+    output_path = f'{folder_destiny}/{name}.jpeg'
+
     complex_tiff = False
+    out_channels = False
 
     try:
         ext = arch.split('.')[-1].lower()
@@ -158,26 +189,25 @@ def preview(arch,
             psb = psd_tools.PSDImage.open(arch)
             img = psb.topil()
         elif ext in ['tiff', 'tif']:
-            complex_tiff = is_complex_tiff(arch)
-            if complex_tiff:
-                LOGGER.info("Complex TIFF was detected.")
-                img = convert_cmyk_to_rgb(arch)
+            # Verifica a quantidade de canais da imagem
+            out_channels = unusual_channels(arch)
+
+            if out_channels:
+                LOGGER.info("More than 4 channels was detected.")
+                run_conversion(arch, output_path, quality, PIXEL_LIMIT)
             else:
-                LOGGER.info("Converting simple TIFF to image.")
-                img = convert_tiff_to_image(arch)
+                complex_tiff = is_complex_tiff(arch)
+                if complex_tiff:
+                    LOGGER.info("Complex TIFF was detected.")
+                    img = convert_cmyk_to_rgb(arch)
+                    save_image_as_jpeg(img, output_path)
+                else:
+                    LOGGER.info("Converting simple TIFF to image.")
+                    img = convert_tiff_to_image(arch)
         else:
             img = Image.open(arch)
 
-        module = arch.replace(folder_path, '').replace('\\', '/').split('.')
-        path = module[0].split('/')
-        name = path[-1]
-        LOGGER.info("Converting %s... with %s of quality", name, quality)
-
-        output_path = f'{folder_destiny}/{name}.jpeg'
-
-        if complex_tiff:
-            save_image_as_jpeg(img, output_path)
-        else:
+        if not complex_tiff and not out_channels:
             if img.mode in ('CMYK', 'RGBA', 'LA', 'P'):
                 print('Converting to RGB')
                 img = img.convert('RGB')
