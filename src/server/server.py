@@ -29,9 +29,10 @@ Usage:
 import os
 import threading
 from http.server import HTTPServer
+import ssl
 from src.auth.auth import AuthHTTPRequestHandler
 from src.logs.logger import LOGGER
-from src.config.config import IP_SERVER
+from src.config.config import IP_SERVER, RUN_HTTPS, CERT_FILE, KEY_FILE
 
 
 def start_http_server(directory, port=8000, server_name="Server"):
@@ -55,8 +56,18 @@ def start_http_server(directory, port=8000, server_name="Server"):
     handler = AuthHTTPRequestHandler
     httpd = HTTPServer((IP_SERVER, int(port)), handler)
 
-    LOGGER.info("%s serving HTTP on %s in port %s from directory: %s",
-                server_name, IP_SERVER, port, directory)
+    if RUN_HTTPS == "True":
+        LOGGER.info("Starting HTTPS server")
+        # SSL/TLS configuration using SSLContext
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(certfile=CERT_FILE, keyfile=KEY_FILE)
+
+        httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+
+    mode = "HTTPS" if RUN_HTTPS == "True" else "HTTP"
+
+    LOGGER.info("%s serving %s on %s in port %s from directory: %s",
+                server_name, mode, IP_SERVER, port, directory)
     httpd.serve_forever()
 
 
