@@ -45,3 +45,4 @@ LOG_URL = os.getenv("LOG_URL")
 RUN_HTTPS = os.getenv("RUN_HTTPS", "False")
 WINDOWS = os.name == "nt"
 SYSTEM = platform.system()
+MAGIC_PATH = os.getenv("MAGIC_PATH", "")

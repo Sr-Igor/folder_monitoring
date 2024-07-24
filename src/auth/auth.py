@@ -160,13 +160,14 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
                 return
         else:
             file_path = unquote(parsed_path.path)
+            file_path = file_path[1:] if WINDOWS else file_path
 
             if (file_path[1:3] == ':/' or file_path[1:3] == ':\\') and WINDOWS:
                 file_path = file_path.lstrip('/')
-            else:
-                if not os.path.isabs(file_path):
-                    file_path = os.path.join(
-                        os.getcwd(), file_path.lstrip('/'))
+
+            if not os.path.isabs(file_path):
+                file_path = os.path.join(
+                    os.getcwd(), file_path.lstrip('/'))
 
             if not os.path.exists(file_path):
                 self.send_response(404)

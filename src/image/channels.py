@@ -3,13 +3,14 @@ This module contains functions to convert a tif image to a jpeg image.
 """
 
 import subprocess
+from src.config.config import MAGIC_PATH
 
 
 def run_conversion(input_file, output_file, quality=75, resize=800, subsampling='4:2:0'):  # noqa
     """
     Convert a tif image to a jpeg image with specified quality and resize.
     """
-    magick_path = '/opt/homebrew/bin/magick'
+    magick_path = MAGIC_PATH
 
     command = [
         magick_path, 'convert',
