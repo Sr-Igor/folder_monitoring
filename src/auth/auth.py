@@ -22,7 +22,7 @@ import os
 from http.server import SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse, unquote
 import requests
-from src.config.config import AUTH_TOKEN, WEB_URL, DOWNLOAD_URL, LOG_URL
+from src.config.config import AUTH_TOKEN, WEB_URL, DOWNLOAD_URL, LOG_URL, WINDOWS  # noqa
 from src.database.db_operations import (
     DatabaseError, fetch_filtered_items)
 from src.zip.zip import create_zip_from_files
@@ -100,7 +100,6 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
                 response.raise_for_status()
 
                 filters = response.json().get('data')
-                # response_id = response.json().get('id')
 
                 try:
                     results = fetch_filtered_items(file_paths, filters)
@@ -161,11 +160,13 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
                 return
         else:
             file_path = unquote(parsed_path.path)
-            # if file_path.startswith('/'):
-            #     file_path = file_path[1:]
 
-            if not os.path.isabs(file_path):
-                file_path = os.path.join(os.getcwd(), file_path.lstrip('/'))
+            if (file_path[1:3] == ':/' or file_path[1:3] == ':\\') and WINDOWS:
+                file_path = file_path.lstrip('/')
+            else:
+                if not os.path.isabs(file_path):
+                    file_path = os.path.join(
+                        os.getcwd(), file_path.lstrip('/'))
 
             if not os.path.exists(file_path):
                 self.send_response(404)

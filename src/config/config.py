@@ -23,6 +23,7 @@ Constants:
 """
 
 import os
+import platform
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -42,3 +43,5 @@ KEY_FILE = os.getenv("KEY_FILE", "./server.key")
 DOWNLOAD_URL = os.getenv("DOWNLOAD_URL")
 LOG_URL = os.getenv("LOG_URL")
 RUN_HTTPS = os.getenv("RUN_HTTPS", "False")
+WINDOWS = os.name == "nt"
+SYSTEM = platform.system()

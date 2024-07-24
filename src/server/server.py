@@ -32,7 +32,7 @@ from http.server import HTTPServer
 import ssl
 from src.auth.auth import AuthHTTPRequestHandler
 from src.logs.logger import LOGGER
-from src.config.config import IP_SERVER, RUN_HTTPS, CERT_FILE, KEY_FILE
+from src.config.config import IP_SERVER, RUN_HTTPS, CERT_FILE, KEY_FILE, SYSTEM
 
 
 def start_http_server(directory, port=8000, server_name="Server"):
@@ -68,6 +68,8 @@ def start_http_server(directory, port=8000, server_name="Server"):
 
     LOGGER.info("%s serving %s on %s in port %s from directory: %s",
                 server_name, mode, IP_SERVER, port, directory)
+
+    LOGGER.info("Run in system: %s", SYSTEM)
     httpd.serve_forever()
 
 
