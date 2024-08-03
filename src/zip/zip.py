@@ -25,8 +25,9 @@ Logging:
 
 import os
 import zipfile
-import tempfile
+import uuid
 from src.logs.logger import LOGGER as logger
+from src.config.config import ZIP_PATH
 
 
 def create_zip_from_files(file_paths):
@@ -39,11 +40,13 @@ def create_zip_from_files(file_paths):
     Returns:
         str: Path to the created ZIP archive.
     """
-    zip_path = tempfile.mktemp(suffix='.zip')
+
+    zip_id = uuid.uuid4()
+    zip_path = os.path.join(ZIP_PATH, f'{zip_id}.zip')
     logger.info('Creating ZIP file at: %s', zip_path)
 
     total_original_size = sum(os.path.getsize(file_path)
-                              for file_path in file_paths if os.path.isfile(file_path))  # noqa
+                                for file_path in file_paths if os.path.isfile(file_path))  # noqa
     logger.info('Total size of original files: %.2f MB',
                 total_original_size / (1024 * 1024))
 

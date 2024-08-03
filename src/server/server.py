@@ -34,6 +34,7 @@ from src.auth.auth import AuthHTTPRequestHandler
 from src.logs.logger import LOGGER
 from src.config.config import IP_SERVER, RUN_HTTPS, CERT_FILE, KEY_FILE, SYSTEM
 from src.server.socket import start_websocket_server
+from src.monitor.clean import clean_schedule_task
 
 
 def start_http_server(directory, port=8000, server_name="Server"):
@@ -98,3 +99,6 @@ def run_http_server_in_thread(directory, port, server_name="Server"):
     socket_thread = threading.Thread(
         target=start_websocket_server, daemon=True)
     socket_thread.start()
+
+    # Start the clean schedule task
+    clean_schedule_task()

@@ -47,3 +47,5 @@ WINDOWS = os.name == "nt"
 SYSTEM = platform.system()
 MAGIC_PATH = os.getenv("MAGIC_PATH", "")
 RGB_PROFILE = os.getenv("RGB_PROFILE", "")
+ZIP_PATH = os.getenv("ZIP_PATH", "")
+CLEAN_ZIP_DAYS = os.getenv("CLEAN_ZIP_DAYS", "7")
