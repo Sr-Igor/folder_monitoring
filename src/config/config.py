@@ -46,3 +46,4 @@ RUN_HTTPS = os.getenv("RUN_HTTPS", "False")
 WINDOWS = os.name == "nt"
 SYSTEM = platform.system()
 MAGIC_PATH = os.getenv("MAGIC_PATH", "")
+RGB_PROFILE = os.getenv("RGB_PROFILE", "")

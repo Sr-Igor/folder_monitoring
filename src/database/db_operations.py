@@ -227,3 +227,32 @@ def fetch_filtered_items(query_values, states):
         raise e
     finally:
         close_db(conn, cur)
+
+
+def save_download_pending(client_id, path):
+    """
+    Insert a event when socket can't be send
+
+    Args:
+        client_id (str): Unique identifier for the client.
+        path (str): Path of the file.
+
+    Returns:
+        None
+    """
+    conn, cur = connect_db()
+    try:
+        d_id = uuid.uuid4()
+
+        query = sql.SQL(
+            "INSERT INTO zip_items (id, user_id, path) VALUES (%s, %s, %s)")
+        cur.execute(query, (str(d_id), client_id, path))
+        conn.commit()
+    except DatabaseError as exc:
+        inner_error_message = f"Error registering socket path in the database: {  # noqa
+            exc}"
+        log.LOGGER.error(inner_error_message)
+        log_error_to_db(inner_error_message)
+        conn.rollback()
+    finally:
+        close_db(conn, cur)

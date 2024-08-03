@@ -53,24 +53,12 @@ def create_zip_from_files(file_paths):
                 arc_name = os.path.basename(file_path)
                 zip_f.write(file_path, arc_name)
 
-                # Calculate the size of the ZIP file after adding the current file # noqa
-                current_zip_size = os.path.getsize(zip_path)
-
-                if total_original_size > 0:
-                    compression_percentage = (
-                        current_zip_size / total_original_size) * 100
-                else:
-                    compression_percentage = 100
-
-                logger.info(
-                    'Added file to ZIP: %s as %s. Current ZIP size: %.2f MB. Compression: %.2f%%',  # noqa
-                    file_path, arc_name, current_zip_size /
-                    (1024 * 1024), compression_percentage
-                )
+                # Calculate the size of the ZIP file after each addition
+                zip_f_size = os.path.getsize(zip_path)
+                logger.info('Added %s to ZIP. Current ZIP size: %.2f MB',
+                            arc_name, zip_f_size / (1024 * 1024))
             else:
-                logger.warning('File not found: %s', file_path)
+                logger.warning('File not found or invalid path: %s',
+                               file_path)
 
-    final_zip_size = os.path.getsize(zip_path)
-    logger.info('ZIP file created successfully at: %s. Final size: %.2f MB. Total compression: %.2f%%',  # noqa
-                zip_path, final_zip_size / (1024 * 1024), (final_zip_size / total_original_size) * 100)  # noqa
     return zip_path

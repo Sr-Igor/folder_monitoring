@@ -16,6 +16,7 @@
     "subfolders",
     "subsampling",
     "tifffile",
-    "topil"
+    "topil",
+    "websockets"
   ]
 }

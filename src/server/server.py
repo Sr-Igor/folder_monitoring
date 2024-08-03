@@ -33,6 +33,7 @@ import ssl
 from src.auth.auth import AuthHTTPRequestHandler
 from src.logs.logger import LOGGER
 from src.config.config import IP_SERVER, RUN_HTTPS, CERT_FILE, KEY_FILE, SYSTEM
+from src.server.socket import start_websocket_server
 
 
 def start_http_server(directory, port=8000, server_name="Server"):
@@ -92,3 +93,8 @@ def run_http_server_in_thread(directory, port, server_name="Server"):
     server_thread = threading.Thread(target=start_http_server, args=(
         directory, port, server_name), daemon=True)
     server_thread.start()
+
+    # Start the websocket server
+    socket_thread = threading.Thread(
+        target=start_websocket_server, daemon=True)
+    socket_thread.start()
