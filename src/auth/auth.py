@@ -24,6 +24,8 @@ from src.config.config import AUTH_TOKEN, WEB_URL, DOWNLOAD_URL, LOG_URL, WINDOW
 from src.database.db_operations import DatabaseError, fetch_filtered_items
 from src.zip.zip import create_zip_from_files
 from src.server.socket import notify_client
+from src.logs.logger import LOGGER
+from src.database.db_operations import save_download_pending
 
 
 class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
@@ -250,11 +252,14 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
             zip archive.
             query_params (dict): Query parameters from the request.
         """
+        user_id = query_params.get('user_id', [None])[0]
+        save_download_pending(user_id, 'empty', False)
+
         zip_path = create_zip_from_files(list_of_files)
 
         # Notify the client via WebSocket
-        user_id = query_params.get('user_id', [None])[0]
-        print('Notifying client', user_id)
+        LOGGER.info('Notifying client %s', user_id)
+
         asyncio.run(notify_client(
             user_id, {'status': 'ready', 'zip_path': zip_path}))
 

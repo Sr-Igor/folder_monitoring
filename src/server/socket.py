@@ -17,7 +17,7 @@ Functions:
 import json
 import asyncio
 import websockets
-from src.database.db_operations import save_download_pending
+from src.database.db_operations import save_download_pending, delete_all_download_pending  # noqa
 from src.logs.logger import LOGGER
 from src.config.config import SOCKET_PORT, IP_SERVER
 
@@ -38,8 +38,9 @@ async def notify_client(client_id, message):
     if client_id in connected_clients:
         websocket = connected_clients[client_id]
         await websocket.send(json.dumps(message))
+        delete_all_download_pending(client_id)
     else:
-        save_download_pending(client_id, message["zip_path"])
+        save_download_pending(client_id, message["zip_path"], True)
 
 
 async def websocket_handler(websocket, path):

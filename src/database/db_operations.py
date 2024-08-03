@@ -229,7 +229,7 @@ def fetch_filtered_items(query_values, states):
         close_db(conn, cur)
 
 
-def save_download_pending(client_id, path):
+def save_download_pending(client_id, path, end):
     """
     Insert a event when socket can't be send
 
@@ -245,11 +245,37 @@ def save_download_pending(client_id, path):
         d_id = uuid.uuid4()
 
         query = sql.SQL(
-            "INSERT INTO zip_items (id, user_id, path) VALUES (%s, %s, %s)")
-        cur.execute(query, (str(d_id), client_id, path))
+            'INSERT INTO zip_items (id, user_id, path, "end") VALUES (%s, %s, %s, %s)')  # noqa
+        cur.execute(query, (str(d_id), client_id, path, end))
         conn.commit()
     except DatabaseError as exc:
         inner_error_message = f"Error registering socket path in the database: {  # noqa
+            exc}"
+        log.LOGGER.error(inner_error_message)
+        log_error_to_db(inner_error_message)
+        conn.rollback()
+    finally:
+        close_db(conn, cur)
+
+
+def delete_all_download_pending(client_id):
+    """
+    Delete all events when socket can be send
+
+    Args:
+        client_id (str): Unique identifier for the client.
+
+    Returns:
+        None
+    """
+    conn, cur = connect_db()
+    try:
+        query = sql.SQL(
+            "DELETE FROM zip_items WHERE user_id = %s")
+        cur.execute(query, (client_id,))
+        conn.commit()
+    except DatabaseError as exc:
+        inner_error_message = f"Error deleting socket path in the database: {  # noqa
             exc}"
         log.LOGGER.error(inner_error_message)
         log_error_to_db(inner_error_message)
