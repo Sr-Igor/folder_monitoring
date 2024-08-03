@@ -19,6 +19,7 @@ import asyncio
 import websockets
 from src.database.db_operations import save_download_pending
 from src.logs.logger import LOGGER
+from src.config.config import SOCKET_PORT, IP_SERVER
 
 # Socket
 connected_clients = {}
@@ -64,10 +65,11 @@ async def websocket_handler(websocket, path):
 
 def start_websocket_server():
     """
-    Start the WebSocket server on localhost at port 8765.
+    Start the WebSocket server on IP_SERVER at port SOCKET_PORT.
     """
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    start_server = websockets.serve(websocket_handler, "localhost", 8765)
+    start_server = websockets.serve(
+        websocket_handler, IP_SERVER, int(SOCKET_PORT))
     loop.run_until_complete(start_server)
     loop.run_forever()
