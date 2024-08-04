@@ -91,14 +91,14 @@ def run_http_server_in_thread(directory, port, server_name="Server"):
     Returns:
         None
     """
-    server_thread = threading.Thread(target=start_http_server, args=(
-        directory, port, server_name), daemon=True)
-    server_thread.start()
-
     # Start the websocket server
     socket_thread = threading.Thread(
         target=start_websocket_server, daemon=True)
     socket_thread.start()
+
+    server_thread = threading.Thread(target=start_http_server, args=(
+        directory, port, server_name), daemon=True)
+    server_thread.start()
 
     # Start the clean schedule task
     clean_schedule_task()
