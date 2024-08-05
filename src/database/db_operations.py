@@ -39,18 +39,17 @@ def log_error_to_db(error_text):
     Returns:
         None
     """
-    # conn, cur = connect_db()
+    conn, cur = connect_db()
     try:
-        # log_id = uuid.uuid4()
-        # query = sql.SQL("INSERT INTO logs_script (id, log) VALUES (%s, %s)")
-        # cur.execute(query, (str(log_id), error_text))
-        # conn.commit()
-        log.LOGGER.error("Error logged to the database: %s", error_text)
+        log_id = uuid.uuid4()
+        query = sql.SQL("INSERT INTO logs_script (id, log) VALUES (%s, %s)")
+        cur.execute(query, (str(log_id), error_text))
+        conn.commit()
     except DatabaseError as exc:
         log.LOGGER.error("Error logging to the database: %s", exc)
-        # conn.rollback()
-    # finally:
-        # close_db(conn, cur)
+        conn.rollback()
+    finally:
+        close_db(conn, cur)
 
 
 def save_to_database(original_filename,

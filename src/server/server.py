@@ -32,9 +32,10 @@ from http.server import HTTPServer
 import ssl
 from src.auth.auth import AuthHTTPRequestHandler
 from src.logs.logger import LOGGER
-from src.config.config import IP_SERVER, RUN_HTTPS, CERT_FILE, KEY_FILE, SYSTEM
+from src.config.config import IP_SERVER, RUN_HTTPS, CERT_FILE, KEY_FILE, SYSTEM, REPOSITORY  # noqa
 from src.server.socket import start_websocket_server
 from src.monitor.clean import clean_schedule_task
+from src.monitor.monitor import monitor_folder
 
 
 def start_http_server(directory, port=8000, server_name="Server"):
@@ -99,6 +100,8 @@ def run_http_server_in_thread(directory, port, server_name="Server"):
     server_thread = threading.Thread(target=start_http_server, args=(
         directory, port, server_name), daemon=True)
     server_thread.start()
+
+    monitor_folder(REPOSITORY)
 
     # Start the clean schedule task
     clean_schedule_task()

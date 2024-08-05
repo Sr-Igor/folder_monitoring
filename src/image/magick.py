@@ -6,7 +6,7 @@ import subprocess
 from src.config.config import MAGIC_PATH, RGB_PROFILE
 
 
-def run_conversion(input_file, output_file, quality=75, resize=800, subsampling='4:2:0'):  # noqa
+def magick_conversion(input_file, output_file, quality=75, resize=800, subsampling='4:2:0'):  # noqa
     """
     Convert a tif image to a jpeg image with specified quality and resize.
     """
@@ -19,6 +19,7 @@ def run_conversion(input_file, output_file, quality=75, resize=800, subsampling=
         '-sampling-factor', subsampling,
         '-quality', str(quality),
         '-strip',
+        '-flatten',
         '-interlace', 'JPEG',
         output_file
     ]

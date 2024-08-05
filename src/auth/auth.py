@@ -128,9 +128,9 @@ class AuthHTTPRequestHandler(SimpleHTTPRequestHandler):
                         list_of_files, query_params)).start()
 
                     client_id = query_params.get('client', [None])[0]
-                    if client_id:
-                        requests.put(
-                            LOG_URL, headers=headers, timeout=10, json={'client_id': client_id, 'graphs': list_of_ids, 'mode': 'original'})  # noqa
+       
+                    requests.put(
+                        LOG_URL, headers=headers, timeout=10, json={'client_id': client_id, 'graphs': list_of_ids, 'mode': 'original'})  # noqa
 
                     self.send_response(201)
                     self.send_header('Content-Type', 'text/plain')
